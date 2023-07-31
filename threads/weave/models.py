@@ -1,5 +1,6 @@
 """Models."""
 from django.db import models
+from django.utils.functional import cached_property
 
 
 class AbstractBase(models.Model):
@@ -23,6 +24,7 @@ class Person(AbstractBase):
     last_name = models.CharField(max_length=64)
     email_address = models.EmailField(unique=True)
 
+    @cached_property
     def full_name(self) -> str:
         """Person's full name."""
         return f"{self.first_name} {self.last_name}"
