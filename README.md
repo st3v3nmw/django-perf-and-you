@@ -1,4 +1,4 @@
-### django-perf-and-you
+### Django Performance and You
 
 This repository contains a code for a presentation around
 profiling Django applications with [Django Silk](https://github.com/jazzband/django-silk).
