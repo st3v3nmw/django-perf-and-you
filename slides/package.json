@@ -16,6 +16,7 @@
   "devDependencies": {
     "@iconify-json/fluent": "^1.1.29",
     "@iconify-json/material-symbols": "^1.1.53",
-    "@iconify-json/mingcute": "^1.1.7"
+    "@iconify-json/mingcute": "^1.1.7",
+    "playwright-chromium": "^1.36.2"
   }
 }

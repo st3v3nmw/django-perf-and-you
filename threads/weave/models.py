@@ -1,5 +1,6 @@
 """Models."""
 from django.db import models
+from django.db.models import Index, Q
 from django.utils.functional import cached_property
 
 
@@ -8,7 +9,7 @@ class AbstractBase(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    deleted = models.BooleanField()
+    deleted = models.BooleanField(db_index=True)
 
     class Meta:
         """Model options."""
@@ -50,3 +51,14 @@ class Message(AbstractBase):
         on_delete=models.PROTECT,
         related_name="messages",
     )
+
+    class Meta(AbstractBase.Meta):
+        """Model options."""
+
+        indexes = [
+            Index(
+                fields=["deleted"],
+                name="soft_deletes_ignore",
+                condition=Q(deleted=False),
+            )
+        ]

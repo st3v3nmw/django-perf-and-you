@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from threads.weave import filters, models, serializers
+from threads.weave import filters, models, paginators, serializers
 
 
 class PersonViewSet(ReadOnlyModelViewSet):
@@ -32,6 +32,7 @@ class MessageViewSet(ReadOnlyModelViewSet):
     queryset = models.Message.objects.filter(deleted=False)
     serializer_class = serializers.MessageSerializer
     filterset_class = filters.MessageFilter
+    # pagination_class = paginators.CustomPageNumberPagination
 
     @action(methods=["GET"], detail=False)
     def list_some(self, request):

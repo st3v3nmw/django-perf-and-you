@@ -6,7 +6,7 @@ dependencies:
     version: 1.2.1
   '@slidev/cli':
     specifier: ^0.42.5
-    version: 0.42.5(postcss@8.4.27)
+    version: 0.42.5(playwright-chromium@1.36.2)(postcss@8.4.27)
   '@slidev/theme-default':
     specifier: latest
     version: 0.21.2
@@ -27,6 +27,9 @@ devDependencies:
   '@iconify-json/mingcute':
     specifier: ^1.1.7
     version: 1.1.7
+  playwright-chromium:
+    specifier: ^1.36.2
+    version: 1.36.2
 
 packages:
 
@@ -772,7 +775,7 @@ packages:
       picomatch: 2.3.1
     dev: false
 
-  /@slidev/cli@0.42.5(postcss@8.4.27):
+  /@slidev/cli@0.42.5(playwright-chromium@1.36.2)(postcss@8.4.27):
     resolution: {integrity: sha512-T+kAQ6C/AqBnGRsMjfZgw7s1Yp/Udv4cjbfJqoCYMqcOF1+5Dl5jTHf8Pquoi6H/UrayrWLIjKv03sdGa6TKUA==}
     engines: {node: '>=14.0.0'}
     hasBin: true
@@ -817,6 +820,7 @@ packages:
       open: 8.4.2
       pdf-lib: 1.17.1
       plantuml-encoder: 1.4.0
+      playwright-chromium: 1.36.2
       postcss-nested: 6.0.1(postcss@8.4.27)
       prismjs: 1.29.0
       prompts: 2.4.2
@@ -3591,6 +3595,19 @@ packages:
   /plantuml-encoder@1.4.0:
     resolution: {integrity: sha512-sxMwpDw/ySY1WB2CE3+IdMuEcWibJ72DDOsXLkSmEaSzwEUaYBT6DWgOfBiHGCux4q433X6+OEFWjlVqp7gL6g==}
     dev: false
+
+  /playwright-chromium@1.36.2:
+    resolution: {integrity: sha512-ONY6+ON1A+qYUBiymWn3MHnBjdPO6lYIi2SiQbUo1OA0cSZaxx9vM2mRYY3p7JLC6AhAbPEimZdXetQx48AHkA==}
+    engines: {node: '>=16'}
+    hasBin: true
+    requiresBuild: true
+    dependencies:
+      playwright-core: 1.36.2
+
+  /playwright-core@1.36.2:
+    resolution: {integrity: sha512-sQYZt31dwkqxOrP7xy2ggDfEzUxM1lodjhsQ3NMMv5uGTRDsLxU0e4xf4wwMkF2gplIxf17QMBCodSFgm6bFVQ==}
+    engines: {node: '>=16'}
+    hasBin: true
 
   /popmotion@11.0.5:
     resolution: {integrity: sha512-la8gPM1WYeFznb/JqF4GiTkRRPZsfaj2+kCxqQgr2MJylMmIKUwBfWW8Wa5fml/8gmtlD5yI01MP1QCZPWmppA==}

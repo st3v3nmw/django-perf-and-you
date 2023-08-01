@@ -16,54 +16,25 @@ transition: slide-left
 title: Django Performance & You
 ---
 
+---
+layout: intro
+---
+
 # Django Performance & You
 
----
-transition: fade-out
----
-
-# Raw SQL? We're Civilized Here!
-
-asdfsdf
+Presented by <a href="https://github.com/st3v3nmw">@st3v3nmw</a>
 
 ---
 transition: fade-out
 ---
 
-# Raw SQL? We're Civilized Here!
+# Agenda
 
-```python {1-3|5-8|9-18}
-> from threads.weave.models import *
-
-> deleted_messages = Message.objects.filter(deleted=True)
-
-> str(deleted_messages.query)  # SQL String
-SELECT * FROM "weave_message"
-WHERE "weave_message"."deleted"
-ORDER BY "weave_message"."updated" DESC
-
-> deleted_messages.explain(analyze=True)  # Query Plan
-Sort  (cost=3342.87..3367.85 rows=9993 width=104) (actual time=21.625..22.368 rows=10036 loops=1)
-  Sort Key: updated DESC
-  Sort Method: quicksort  Memory: 1835kB
-  ->  Seq Scan on weave_message  (cost=0.00..2679.00 rows=9993 width=104) (actual time=0.020..17.314 rows=10036 loops=1)
-        Filter: deleted
-        Rows Removed by Filter: 89964
-Planning Time: 0.099 ms
-Execution Time: 23.005 ms
-```
-
----
-transition: fade-out
----
-
-# The Demo Project: ERD
-
----
-transition: fade-out
----
-
-# The Demo Project: Models
+1. Quick walkthrough on the Demo Project & Django Silk
+2. The N+1 Query Problem
+3. Interpreting EXPLAIN ANALYZE
+4. Scan Types
+5. Covering & Partial Indexes
 
 ---
 transition: fade-out
@@ -79,7 +50,7 @@ http://127.0.0.1:8000/api/messages/list_some/
   <i style="margin-right: 20px;" class="text-red-400"><fluent-text-word-count-24-filled/>103 queries</i>
 </div>
 
-```python {3-}
+```python {3-|8}
 class MessageViewSet(ReadOnlyModelViewSet):
     """Message viewset."""
 
@@ -87,11 +58,29 @@ class MessageViewSet(ReadOnlyModelViewSet):
     def list_some(self, request):
         """List some messages."""
         messages = models.Message.objects.all()[:100]
-        data = serializers.MessageSerializer(messages, many=True,).data
+        data = serializers.MessageSerializer(messages, many=True).data
         return Response(data=data, status=HTTP_200_OK)
 ```
 
-### Queries
+```python {5-8}
+    @action(methods=["GET"], detail=False)
+    def list_some(self, request):
+        """List some messages."""
+        messages = models.Message.objects.all()[:100]
+        data = []
+        for message in messages:
+          sent_by = message.sent_by
+          data.append({"sender": sent_by.full_name, "text": message.text})
+        return Response(data=data, status=HTTP_200_OK)
+```
+
+<Arrow x1="600" y1="310" x2="500" y2="450" />
+
+---
+transition: fade-out
+---
+
+# Example 1: Queries
 
 <i>From http://127.0.0.1:8000/silk/requests/</i>
 
@@ -103,11 +92,7 @@ SELECT * FROM "weave_message" ORDER BY "weave_message"."updated" DESC LIMIT 100
 SELECT * FROM "weave_person" ORDER BY "weave_person"."updated" DESC
 ```
 
----
-transition: fade-out
----
-
-# Example 1: Query Plan 1
+# Query Plan 1
 
 ##### SELECT * FROM "weave_person" ORDER BY "weave_person"."updated" DESC
 
@@ -395,39 +380,215 @@ SELECT COUNT(*) AS "__count" FROM "weave_thread" WHERE NOT "weave_thread"."delet
 transition: fade-out
 ---
 
-# SELECT COUNT(*)
+# Example 3: Covering Indexes
+
+http://127.0.0.1:8000/api/messages/
+
+<i style="margin-right: 20px;" class="text-amber-400"><material-symbols-database/>88.364ms</i>
+
+```sql
+# We will be focusing on only one query this time
+# This query is run during pagination to get the total
+# number of objects in the database
+
+SELECT COUNT(*) AS "__count" FROM "weave_message"
+WHERE NOT "weave_message"."deleted"
+```
+
+#### Query Plan
+
+```sql
+Aggregate  (cost=2904.02..2904.03 rows=1 width=8) (actual time=23.799..23.800 rows=1 loops=1)
+  Output: count(*)
+  ->  Seq Scan on public.weave_message  (cost=0.00..2679.00 rows=90007 width=0) (actual time=0.008..17.689 rows=89964 loops=1)
+        Output: id, created, updated, deleted, text, sent_by_id, thread_id
+        Filter: (NOT weave_message.deleted)
+        Rows Removed by Filter: 10036
+Planning Time: 0.063 ms
+Execution Time: 23.826 ms
+```
 
 ---
 transition: fade-out
 ---
 
-# SELECT COUNT(*)
+# Example 3: Covering Indexes
+
+```python {monaco-diff}
+class AbstractBase(models.Model):
+    """Abstract Base."""
+
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    deleted = models.BooleanField()
+
+    class Meta:
+        ordering = ("-updated",)
+        abstract = True
+~~~
+class AbstractBase(models.Model):
+    """Abstract Base."""
+
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    deleted = models.BooleanField(db_index=True)
+
+    class Meta:
+        ordering = ("-updated",)
+        abstract = True
+```
+
+#### Query Plan
+
+<i style="margin-right: 20px;" class="text-green-400"><material-symbols-database/>14.985ms</i>
+
+```sql
+Aggregate  (cost=2116.43..2116.44 rows=1 width=8) (actual time=17.813..17.814 rows=1 loops=1)
+  Output: count(*)
+  ->  Index Only Scan using weave_message_deleted_9517d20b on public.weave_message  (cost=0.29..1891.41 rows=90007 width=0) (actual time=0.028..11.037 rows=89964 loops=1)
+        Output: deleted
+        Index Cond: (weave_message.deleted = false)
+        Heap Fetches: 0
+Planning Time: 0.078 ms
+Execution Time: 17.846 ms
+```
 
 ---
 transition: fade-out
 ---
 
-# Periodic Tasks
+# Example 3: Partial Indexes
 
-- event-driven architecture
+```python {monaco-diff}
+class Message(AbstractBase):
+    class Meta(AbstractBase.Meta):
+        pass
+~~~
+from django.db.models import Index, Q
+
+class Message(AbstractBase):
+    class Meta(AbstractBase.Meta):
+        indexes = [
+            Index(
+                fields=["deleted"],
+                name="soft_deletes_ignore",
+                condition=Q(deleted=False),
+            )
+        ]
+```
+
+#### Query Plan
+
+<i style="margin-right: 20px;" class="text-green-400"><material-symbols-database/>21.83ms</i>
+
+```sql
+Aggregate  (cost=1887.20..1887.21 rows=1 width=8) (actual time=25.893..25.895 rows=1 loops=1)
+  Output: count(*)
+  ->  Index Only Scan using soft_deletes_ignore on public.weave_message  (cost=0.29..1662.18 rows=90007 width=0) (actual time=0.031..16.012 rows=89964 loops=1)
+        Output: deleted
+        Heap Fetches: 0
+Planning Time: 0.137 ms
+Execution Time: 25.931 ms
+```
 
 ---
 transition: fade-out
 ---
 
-# Periodic Tasks
+# Example 4: Index Scans
 
-- .iterator()
-- .prefetch_related, .select_related()
-- .bulk actions
-- avoiding premature qs evaluation
+```python {1-2|3-4|5-13|14-24}
+> from threads.weave.models import *
+> deleted_messages = Message.objects.filter(deleted=True)
+> str(deleted_messages.query)
+SELECT * FROM "weave_message" WHERE "weave_message"."deleted" ORDER BY "weave_message"."updated" DESC
+> deleted_messages.explain(analyze=True)  # Before Index
+Sort  (cost=3342.87..3367.85 rows=9993 width=104) (actual time=21.625..22.368 rows=10036 loops=1)
+  Sort Key: updated DESC
+  Sort Method: quicksort  Memory: 1835kB
+  ->  Seq Scan on weave_message  (cost=0.00..2679.00 rows=9993 width=104) (actual time=0.020..17.314 rows=10036 loops=1)
+        Filter: deleted
+        Rows Removed by Filter: 89964
+Planning Time: 0.099 ms
+Execution Time: 23.005 ms
+> deleted_messages.explain(analyze=True)  # After Index
+Sort  (cost=2556.54..2581.52 rows=9993 width=104) (actual time=16.202..17.342 rows=10036 loops=1)
+  Sort Key: updated DESC
+  Sort Method: quicksort  Memory: 1835kB
+  ->  Bitmap Heap Scan on weave_message  (cost=113.74..1892.67 rows=9993 width=104) (actual time=1.528..9.371 rows=10036 loops=1)
+        Filter: deleted
+        Heap Blocks: exact=1676
+        ->  Bitmap Index Scan on weave_message_deleted_9517d20b  (cost=0.00..111.24 rows=9993 width=0) (actual time=0.870..0.871 rows=10036 loops=1)
+              Index Cond: (deleted = true)
+Planning Time: 0.207 ms
+Execution Time: 18.260 ms
+```
 
 ---
 transition: fade-out
 ---
 
-# Caching
+# SELECT COUNT(*) Estimates
+
+Do we really need exact total counts during pagination? 🤔
+
+> Google Search Doesn't...
+>> "About 25,200,000,000 results (0.45 seconds)"
+
+```python
+# threads.weave.paginators.py
+
+class CustomPaginator(Paginator):
+
+    @cached_property
+    def count(self) -> int:
+        """Return the total number of objects, across all pages."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT reltuples FROM pg_class WHERE relname = %s",
+                [self.object_list.query.model._meta.db_table],
+            )
+            return int(cursor.fetchone()[0])
+
+class CustomPageNumberPagination(PageNumberPagination):
+
+    django_paginator_class = CustomPaginator
+```
 
 ---
 transition: fade-out
 ---
+
+# SELECT COUNT(*) Estimates
+
+<i style="margin-right: 20px;" class="text-green-400"><material-symbols-database/>1.39ms</i>
+
+#### Query
+
+```sql
+SELECT reltuples FROM pg_class WHERE relname = weave_message
+# Output = 100,000; Correct = 89,964 😖
+# Filters not applied
+```
+
+#### Query Plan
+
+```sql
+Index Scan using pg_class_relname_nsp_index on pg_class
+  (cost=0.28..8.29 rows=1 width=4)
+  (actual time=0.043..0.046 rows=1 loops=1)
+```
+
+<br/>
+
+Are we able to surface the count estimates from the query planner?
+
+---
+transition: fade-out
+---
+
+---
+layout: statement
+---
+
+# Thank You!
