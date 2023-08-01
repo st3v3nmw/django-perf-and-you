@@ -15,3 +15,8 @@ profiling Django applications with [Django Silk](https://github.com/jazzband/dja
     - http://127.0.0.1:8000/api/messages/
     - http://127.0.0.1:8000/api/threads/
 - Access the Django Silk profiling dashboard on http://127.0.0.1:8000/silk/
+
+#### Slides
+
+- [PDF export](slides/slides-export.pdf)
+- These slides are made with [this awesome tool (slidev)](https://github.com/slidevjs/slidev)

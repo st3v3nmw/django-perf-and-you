@@ -97,6 +97,10 @@ SELECT * FROM "weave_message" ORDER BY "weave_message"."updated" DESC LIMIT 100
 SELECT * FROM "weave_person" ORDER BY "weave_person"."updated" DESC
 ```
 
+---
+transition: fade-out
+---
+
 # Query Plan 1
 
 ##### SELECT * FROM "weave_person" ORDER BY "weave_person"."updated" DESC
@@ -113,6 +117,10 @@ Sort  (cost=73.83..76.33 rows=1000 width=76) (actual time=0.600..0.700 rows=1000
 Planning Time: 0.081 ms
 Execution Time: 0.815 ms
 ```
+
+<br/>
+
+<img src="assets/seq scan.svg"/>
 
 ---
 transition: fade-out
@@ -425,6 +433,16 @@ Aggregate  (cost=2116.43..2116.44 rows=1 width=8) (actual time=17.813..17.814 ro
 Planning Time: 0.078 ms
 Execution Time: 17.846 ms
 ```
+
+---
+transition: fade-out
+---
+
+# Example 3: Covering Indexes
+
+<div style="display: flex; justify-content: center;">
+  <img src="assets/index scan.svg" height="450" width="450" />
+</div>
 
 ---
 transition: fade-out
