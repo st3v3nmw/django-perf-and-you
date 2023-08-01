@@ -14,13 +14,16 @@ export:
 colorSchema: 'light'
 transition: slide-left
 title: Django Performance & You
----
-
----
 layout: intro
 ---
 
 # Django Performance & You
+
+<div style="display: flex; justify-content: center;">
+  <img src="assets/screaming flork.webp" height="100" width="100" />
+</div>
+
+<br/><br/>
 
 Presented by <a href="https://github.com/st3v3nmw">@st3v3nmw</a>
 
@@ -35,6 +38,8 @@ transition: fade-out
 3. Interpreting EXPLAIN ANALYZE
 4. Scan Types
 5. Covering & Partial Indexes
+
+<a href="https://github.com/st3v3nmw/django-perf-and-you">Link to code repository.</a>
 
 ---
 transition: fade-out
@@ -153,14 +158,7 @@ http://127.0.0.1:8000/api/messages/list_some/
   <i style="margin-right: 20px;" class="text-green-400"><fluent-text-word-count-24-filled/>1 queries</i>
 </div>
 
-```python {monaco-diff}
-    @action(methods=["GET"], detail=False)
-    def list_some(self, request):
-        """List some messages."""
-        messages = models.Message.objects.all()[:100]
-        data = serializers.MessageSerializer(messages, many=True,).data
-        return Response(data=data, status=HTTP_200_OK)
-~~~
+```python {4-7}
     @action(methods=["GET"], detail=False)
     def list_some(self, request):
         """List some messages."""
@@ -298,13 +296,8 @@ http://127.0.0.1:8000/api/threads/
   <i style="margin-right: 20px;" class="text-red-400"><fluent-text-word-count-24-filled/>10,145 queries</i>
 </div>
 
-```python {monaco-diff}
+```python {2-}
 class ThreadViewSet(ReadOnlyModelViewSet):
-
-    queryset = models.Thread.objects.filter(deleted=False)
-~~~
-class ThreadViewSet(ReadOnlyModelViewSet):
-
     queryset = (
       models.Thread.objects
       .filter(deleted=False)
@@ -342,17 +335,8 @@ http://127.0.0.1:8000/api/threads/
   <i style="margin-right: 20px;" class="text-green-400"><fluent-text-word-count-24-filled/>4 queries</i>
 </div>
 
-```python {monaco-diff}
+```python {2-}
 class ThreadViewSet(ReadOnlyModelViewSet):
-
-    queryset = (
-      models.Thread.objects
-      .filter(deleted=False)
-      .prefetch_related("messages")
-    )
-~~~
-class ThreadViewSet(ReadOnlyModelViewSet):
-
     queryset = (
       models.Thread.objects
       .filter(deleted=False)
@@ -414,18 +398,7 @@ transition: fade-out
 
 # Example 3: Covering Indexes
 
-```python {monaco-diff}
-class AbstractBase(models.Model):
-    """Abstract Base."""
-
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-    deleted = models.BooleanField()
-
-    class Meta:
-        ordering = ("-updated",)
-        abstract = True
-~~~
+```python {6}
 class AbstractBase(models.Model):
     """Abstract Base."""
 
@@ -459,11 +432,7 @@ transition: fade-out
 
 # Example 3: Partial Indexes
 
-```python {monaco-diff}
-class Message(AbstractBase):
-    class Meta(AbstractBase.Meta):
-        pass
-~~~
+```python
 from django.db.models import Index, Q
 
 class Message(AbstractBase):
@@ -497,7 +466,7 @@ transition: fade-out
 
 # Example 4: Index Scans
 
-```python {1-2|3-4|5-13|14-24}
+```python {all|1-2|3-4|5-13|14-24}
 > from threads.weave.models import *
 > deleted_messages = Message.objects.filter(deleted=True)
 > str(deleted_messages.query)
@@ -568,8 +537,12 @@ transition: fade-out
 ```sql
 SELECT reltuples FROM pg_class WHERE relname = weave_message
 # Output = 100,000; Correct = 89,964 😖
-# Filters not applied
+# Filters/conditions not applied
 ```
+
+> The catalog `pg_class` catalogs tables and most everything else that has columns or is otherwise similar to a table. This includes indexes, views, materialized views, composite types, and TOAST tables; see `relkind`. When we mean all of these kinds of objects we speak of “relations”. \
+> `reltuples` is the number of live rows in the table. This is only an estimate used by the planner. It's updated by `VACUUM`, `ANALYZE`, and a few DDL commands such as `CREATE INDEX`. \
+> ~ https://www.postgresql.org/docs/current/catalog-pg-class.html
 
 #### Query Plan
 
@@ -579,13 +552,73 @@ Index Scan using pg_class_relname_nsp_index on pg_class
   (actual time=0.043..0.046 rows=1 loops=1)
 ```
 
-<br/>
-
-Are we able to surface the count estimates from the query planner?
+Are we able to surface the count estimates from the query planner? Probably not.
 
 ---
 transition: fade-out
 ---
+
+# SELECT COUNT(*) Estimates
+
+Introducing `TABLESAMPLE SYSTEM (n)` 🥁
+
+<i style="margin-right: 20px;" class="text-green-400"><material-symbols-database/>11.50ms</i>
+
+#### But can we do better? Yes!
+
+> `TABLESAMPLE SYSTEM` method returns an approximate percentage of rows. It generates a random number for each physical storage page for the underlying relation. Based on this random number and the sampling percentage specified, it either includes or exclude the corresponding storage page. If that page is included, the whole page will be returned in the result set.\
+> ~ https://wiki.postgresql.org/wiki/TABLESAMPLE_Implementation
+
+<br/>
+
+```sql
+SELECT COUNT(*) AS "__count" FROM "weave_message" TABLESAMPLE BERNOULLI (10)
+WHERE NOT "weave_message"."deleted"
+# Average output from several runs = 90,122.5; Correct = 89,964
+# Off by ONLY 0.18%
+```
+
+<br/>
+
+#### Query Plan
+
+```sql
+Aggregate (cost=1801.50..1801.51 rows=1 width=8) (actual time=11.505..11.506 rows=1 loops=1)
+# Original time taken: Around 25ms
+```
+
+---
+transition: fade-out
+---
+
+# SELECT COUNT(*) Estimates
+
+```python {5-}
+class CustomPaginator(Paginator):
+    @cached_property
+    def count(self) -> int:
+        """Return the total number of objects, across all pages.
+        Could be made more robust by first running the normal COUNT(*)
+        with a `SET LOCAL statement_timeout TO 50`
+        and then reverting to this if that doesn't complete in time.
+        """
+        with connection.cursor() as cursor:
+            db_table = self.object_list.model._meta.db_table
+            query = (
+                self.object_list.annotate(__count=Count("*"))
+                .values("__count")
+                .order_by()
+                .query
+            )
+            query.group_by = None
+            query_string = str(query)
+            query_string = query_string.replace(
+                f'FROM "{db_table}"',
+                f'FROM "{db_table}" TABLESAMPLE BERNOULLI (10) REPEATABLE (42)',
+            )
+            cursor.execute(query_string)
+            return 10 * int(cursor.fetchone()[0])
+```
 
 ---
 layout: statement

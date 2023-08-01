@@ -32,7 +32,7 @@ class MessageViewSet(ReadOnlyModelViewSet):
     queryset = models.Message.objects.filter(deleted=False)
     serializer_class = serializers.MessageSerializer
     filterset_class = filters.MessageFilter
-    # pagination_class = paginators.CustomPageNumberPagination
+    pagination_class = paginators.CustomPageNumberPagination
 
     @action(methods=["GET"], detail=False)
     def list_some(self, request):
