@@ -11,11 +11,11 @@ class CustomPaginator(Paginator):
 
     @cached_property
     def count(self) -> int:
-        """Return the total number of objects, across all pages.
+        """Return an estimate of the total number of objects.
 
         Could be made more robust by first running the normal COUNT(*)
         with a `SET LOCAL statement_timeout TO 50`
-        and then reverting to this if that doesn't complete in time
+        and then reverting to this if that doesn't complete in time.
         """
         with connection.cursor() as cursor:
             db_table = self.object_list.model._meta.db_table
