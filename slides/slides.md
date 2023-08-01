@@ -79,7 +79,7 @@ class MessageViewSet(ReadOnlyModelViewSet):
         return Response(data=data, status=HTTP_200_OK)
 ```
 
-<Arrow x1="600" y1="310" x2="500" y2="450" />
+<Arrow x1="500" y1="310" x2="400" y2="450" />
 
 ---
 transition: fade-out
@@ -578,19 +578,19 @@ transition: fade-out
 
 # SELECT COUNT(*) Estimates
 
-Introducing `TABLESAMPLE SYSTEM (n)` 🥁
+Introducing `TABLESAMPLE SYSTEM/BERNOULLI (n)` 🥁
 
 <i style="margin-right: 20px;" class="text-green-400"><material-symbols-database/>11.50ms</i>
 
 #### But can we do better? Yes!
 
-> `TABLESAMPLE SYSTEM` method returns an approximate percentage of rows. It generates a random number for each physical storage page for the underlying relation. Based on this random number and the sampling percentage specified, it either includes or exclude the corresponding storage page. If that page is included, the whole page will be returned in the result set.\
+> The `TABLESAMPLE SYSTEM/BERNOULLI` method returns an approximate percentage of rows. It generates a random number for each physical storage page for the underlying relation. Based on this random number and the sampling percentage specified, it either includes or exclude the corresponding storage page. If that page is included, the whole page will be returned in the result set.\
 > ~ https://wiki.postgresql.org/wiki/TABLESAMPLE_Implementation
 
 <br/>
 
 ```sql
-SELECT COUNT(*) AS "__count" FROM "weave_message" TABLESAMPLE BERNOULLI (10)
+SELECT COUNT(*) AS "__count" FROM "weave_message" TABLESAMPLE BERNOULLI (10) REPEATABLE (42)
 WHERE NOT "weave_message"."deleted"
 # Average output from several runs = 90,122.5; Correct = 89,964
 # Off by ONLY 0.18%
@@ -611,11 +611,11 @@ transition: fade-out
 
 # SELECT COUNT(*) Estimates
 
-```python {5-}
+```python {4-}
 class CustomPaginator(Paginator):
     @cached_property
     def count(self) -> int:
-        """Return the total number of objects, across all pages.
+        """Return an estimate of the total number of objects.
         Could be made more robust by first running the normal COUNT(*)
         with a `SET LOCAL statement_timeout TO 50`
         and then reverting to this if that doesn't complete in time.
