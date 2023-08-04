@@ -25,7 +25,7 @@ layout: intro
 
 <br/><br/>
 
-Presented by <a href="https://github.com/st3v3nmw">@st3v3nmw</a>
+Presented by <a href="https://github.com/st3v3nmw">@st3v3nmw</a> (~~Software Engineer~~ Senior Intern)
 
 ---
 transition: fade-out
@@ -33,13 +33,72 @@ transition: fade-out
 
 # Agenda
 
-1. Quick walkthrough on the Demo Project & Django Silk
-2. The N+1 Query Problem
-3. Interpreting EXPLAIN ANALYZE
-4. Scan Types
-5. Covering & Partial Indexes
+0. Quick walkthrough on the Demo Project & Django Silk
+1. The N+1 Query Problem
+2. Interpreting EXPLAIN ANALYZE
+3. Scan Types
+4. Covering & Partial Indexes
+5. Periodic Tasks
 
 <a href="https://github.com/st3v3nmw/django-perf-and-you">Link to code repository.</a>
+
+---
+transition: fade-out
+---
+
+# Profile Before Optimizing
+
+> Premature optimization is the root of all evil ~ Donald Knuth
+
+The problem with premature optimization is that you never know in advance where the bottlenecks will be while coding the system.
+
+A heuristic / rule of thumb to address this would be:
+
+> 1. Make it work
+> 2. Make it right
+> 3. Use the system and find performance bottlenecks
+> 4. Use a profiler in those bottlenecks to determine what needs to be optimized
+> 5. Make it fast \
+> https://wiki.c2.com/?ProfileBeforeOptimizing=
+
+**Performance Targets**
+
+_Ideally_, backend APIs should target a `p50` latency of `100 - 150ms`, and a `p95` latency of `250 - 300ms`.
+Some systems which will remain unnamed have tail latencies (`p99s, p99.9s`) greater than `20,000ms` 💀.
+Tail latencies affect your most valuable customers since they have more data, etc.
+
+---
+transition: fade-out
+---
+
+# Django Silk Setup
+
+In `settings.py`, add the following:
+
+```python
+INSTALLED_APPS = (
+    ...
+    "silk"
+)
+
+MIDDLEWARE = [
+    "silk.middleware.SilkyMiddleware",
+    ...
+]
+SILKY_PYTHON_PROFILER = True
+SILKY_ANALYZE_QUERIES = True
+SILKY_PYTHON_PROFILER_BINARY = True
+SILKY_PYTHON_PROFILER_RESULT_PATH = "profiling/"
+SILKY_EXPLAIN_FLAGS = {"costs": True, "verbose": True}
+```
+
+To enable access to the user interface add the following to your `urls.py`:
+
+```python
+urlpatterns += [("silk/", include("silk.urls", namespace="silk"))]
+```
+
+Then run `migrate` & `collectstatic`.
 
 ---
 transition: fade-out
@@ -639,7 +698,54 @@ class CustomPaginator(Paginator):
 ```
 
 ---
+transition: fade-out
+---
+
+# Periodic Tasks
+
+- Periodic tasks are one of the 4 horsemen of the apocalypse 😏. They should be avoided like the plague.
+  - Instead, prefer event-driven tasks
+    - These typa tasks run immediately after an event e.g. `instance.save`, `instance.create`, `instance.transition`, Django signals, etc, ...
+    - You can use Celery to set-up automatic retries for certain errors
+      - Retry with exponential backoff to reduce load
+  - For reporting, separate your transactional (Postgres) and analytical (BigQuery) databases so that reports don't slow down your main database
+- If you must:
+  - Do things in bulk e.g. `bulk_create`, `bulk_update`
+  - Use iterators when looping over a large number of objects (`qs.iterator()`)
+    - Helps reduce memory usage
+  - Add indexes to fields that are used to filter. This speeds up reads but slows down writes (there's no such thing as a free lunch)
+
+---
+transition: fade-out
+---
+
+# Periodic Tasks
+
+```python
+q = Entry.objects.filter(headline__startswith="What")
+q = q.filter(pub_date__lte=datetime.date.today())
+q = q.exclude(body_text__icontains="food")
+print(q)
+```
+
+<br/>
+
+- Realize that querysets are lazy, so avoid things like:
+  - `len(qs)` -> `qs.count()`
+  - `list(qs)` 😒
+  - `bool(qs)` -> `qs.exists()`
+
+<br/>
+
+> QuerySets are lazy – the act of creating a QuerySet doesn’t involve any database activity. You can stack filters together all day long, and Django won’t actually run the query until the QuerySet is evaluated \
+> https://docs.djangoproject.com/en/4.2/ref/models/querysets/#when-querysets-are-evaluated
+
+---
 layout: statement
 ---
 
 # Thank You!
+
+<br/><br/>
+
+### And if everything fails, try API caching lol 🫠
