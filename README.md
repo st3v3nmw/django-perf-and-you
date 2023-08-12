@@ -18,5 +18,5 @@ profiling Django applications with [Django Silk](https://github.com/jazzband/dja
 
 #### Slides
 
-- [PDF export](slides/slides-export.pdf)
-- These slides are made with [this awesome tool (slidev)](https://github.com/slidevjs/slidev)
+- Check out the presentation slides [here](https://www.stephenmwangi.com/talks/django-perf-and-you/)
+- Here's a [PDF export](https://github.com/st3v3nmw/talks/blob/main/django-perf-and-you/slides-export.pdf)
