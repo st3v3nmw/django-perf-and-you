@@ -8,4 +8,6 @@ To start the slide show:
 
 Edit the [slides.md](./slides.md) to see the changes.
 
+Run `npm run export` to generate a PDF version of the slides.
+
 Learn more about Slidev on [documentations](https://sli.dev/).
