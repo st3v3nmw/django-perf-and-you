@@ -19,4 +19,4 @@ profiling Django applications with [Django Silk](https://github.com/jazzband/dja
 #### Slides
 
 - Check out the presentation slides [here](https://www.stephenmwangi.com/talks/django-perf-and-you/)
-- Here's a [PDF export](https://github.com/st3v3nmw/talks/blob/main/django-perf-and-you/slides-export.pdf)
+- Here's a [PDF export](https://raw.githubusercontent.com/st3v3nmw/talks/main/django-perf-and-you/slides-export.pdf)
