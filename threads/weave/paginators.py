@@ -1,6 +1,12 @@
 """Paginator."""
 from django.core.paginator import Paginator
-from django.db import DatabaseError, OperationalError, connection, transaction
+from django.db import (
+    DEFAULT_DB_ALIAS,
+    DatabaseError,
+    OperationalError,
+    connection,
+    transaction,
+)
 from django.db.models import Count
 from django.utils.functional import cached_property
 from rest_framework.pagination import PageNumberPagination
@@ -21,6 +27,7 @@ class CustomPaginator(Paginator):
                 pass
 
         # Return the estimate instead
+        # This is * VERY * hacky btw
         with connection.cursor() as cursor:
             db_table = self.object_list.model._meta.db_table
             query = (
@@ -30,12 +37,12 @@ class CustomPaginator(Paginator):
                 .query
             )
             query.group_by = None
-            query_string = str(query)
-            query_string = query_string.replace(
+            sql, params = query.get_compiler(DEFAULT_DB_ALIAS).as_sql()
+            sql = sql.replace(
                 f'FROM "{db_table}"',
                 f'FROM "{db_table}" TABLESAMPLE BERNOULLI (10) REPEATABLE (42)',
             )
-            cursor.execute(query_string)
+            cursor.execute(sql, params)
             return 10 * int(cursor.fetchone()[0])
 
 
