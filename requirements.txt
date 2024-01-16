@@ -1,4 +1,4 @@
-Django==4.2.3
+Django==4.2.7
 django_silk==5.0.3
 psycopg==3.1.9
 Faker==19.2.0
